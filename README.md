@@ -12,7 +12,7 @@ No package manager needed: download one file.
 
 ```bash
 curl -O https://raw.githubusercontent.com/dobravaza/proofmerge-rls-check/main/rls_check.py
-# or from https://proofmerge.com/downloads/rls_check.py (SHA-256 published on https://proofmerge.com/supabase-rls-checker)
+sha256sum rls_check.py   # v0.1.0: b50ee6a168a68493db3f3b866506ef137a6156c94728de98ada5ac54ab94b419
 ```
 
 ## Privacy
