@@ -6,6 +6,10 @@ Python 3.10+ standard library only. No install, no account, no network calls. It
 
 > **Not a security audit.** The tool looks for 13 known misconfiguration patterns in files. A clean report means none of them matched; it does not certify that your app or your Supabase project is secure, and it does not test anything against a live database. See [Limitations](#limitations) and the [walkthrough](examples/WALKTHROUGH.md) for what it misses.
 
+![Real output of rls_check v0.1.0 on examples/grant-fix: a table without RLS plus a schema-wide grant, reported as 1 critical and 1 high finding with the SQL fix](docs/demo-grant-fix.svg)
+
+*Unedited output of v0.1.0 on [`examples/grant-fix`](examples/grant-fix) (lines wrapped): the common "42501 permission denied" quick fix that opens a table without RLS. Run `python3 rls_check.py examples/grant-fix` to reproduce it.*
+
 ## Install
 
 No package manager needed: download one file.
