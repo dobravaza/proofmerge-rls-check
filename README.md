@@ -86,7 +86,7 @@ schema public
       why:   Every table that existed at this point became reachable through the Data API for anon, authenticated, including 1 without RLS (public.invoices), so all their rows are open.
 ```
 
-The safer fix: revoke the schema-wide grant, enable RLS and write the policy, then grant each table only what the app uses (for example `grant select on public.invoices to authenticated;`).
+The safer fix: revoke the schema-wide grant, enable RLS and write the policy, then grant each table only what the app uses (for example `grant select on public.invoices to authenticated;`). [`examples/grant-fix-fixed`](examples/grant-fix-fixed) is the same project plus that migration ([`20261102100000_lock_invoices.sql`](examples/grant-fix-fixed/supabase/migrations/20261102100000_lock_invoices.sql)); `python3 rls_check.py examples/grant-fix-fixed` prints `0 critical, 0 high, 0 medium, 0 low  ->  PASS` and exits 0. A pass means none of the 13 known patterns matched, not that the app is secure.
 
 The suggested SQL is a starting point. Read it before you run it: an owner-only policy is wrong for tables that are shared between team members.
 
@@ -124,7 +124,7 @@ Exit code is `1` when there is a finding at or above `--fail-on`, `0` otherwise,
 python3 -m unittest discover -s tests -v
 ```
 
-76 tests: a positive and a negative case per rule, security tests (no network access, secrets never printed in text/JSON/HTML, symlinks outside the project ignored, oversized and binary files skipped), `pg_dump`-style quoted SQL, output/CLI behaviour, both example projects end to end (the good project must produce zero findings), and the walkthrough's fix migration.
+77 tests: a positive and a negative case per rule, security tests (no network access, secrets never printed in text/JSON/HTML, symlinks outside the project ignored, oversized and binary files skipped), `pg_dump`-style quoted SQL, output/CLI behaviour, the example projects end to end (`good-project` and `grant-fix-fixed` must produce zero findings), and the walkthrough's fix migration.
 
 
 ## Who made this

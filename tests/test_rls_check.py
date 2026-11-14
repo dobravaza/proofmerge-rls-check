@@ -532,6 +532,12 @@ class TestExampleProjects(Base):
         got = sorted((f.rule, f.severity, f.target) for f in res["findings"])
         self.assertEqual(got, [("GRANT002", "high", "schema public"), ("RLS001", "critical", "table public.invoices")])
 
+    def test_grant_fix_fixed_example_passes(self):
+        res = rls_check.scan_project(os.path.join(KIT, "examples", "grant-fix-fixed"))
+        self.assertEqual([(f.rule, f.target) for f in res["findings"]], [])
+        self.assertEqual(res["scanned"]["tables"], 1)
+        self.assertEqual(rls_check.exit_code(res, "low"), 0)
+
     def test_good_project_has_zero_findings(self):
         res = rls_check.scan_project(GOOD)
         self.assertEqual([(f.rule, f.target, f.title) for f in res["findings"]], [])
