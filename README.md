@@ -2,7 +2,7 @@
 
 One Python file that reads your Supabase migrations and app source **offline** and tells you, in plain language, where Row Level Security is missing or wide open before you launch. Built for founders who shipped with Lovable, Bolt, Cursor, v0 or similar tools.
 
-Python 3.8+ standard library only. No install, no account, no network calls. It never prints secret values.
+Python 3.10+ standard library only. No install, no account, no network calls. It never prints secret values.
 
 > **Not a security audit.** The tool looks for 13 known misconfiguration patterns in files. A clean report means none of them matched; it does not certify that your app or your Supabase project is secure, and it does not test anything against a live database. See [Limitations](#limitations) and the [walkthrough](examples/WALKTHROUGH.md) for what it misses.
 
