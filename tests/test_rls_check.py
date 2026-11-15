@@ -317,6 +317,33 @@ class TestGrant002WideGrants(Base):
                                    "public to anon, authenticated, service_role;\n"),
                          [("low", "Schema-wide grant to anon, authenticated on all tables")])
 
+    # GRANT003 (issue #1): per-schema default-privileges revoke of EXECUTE from PUBLIC is a no-op
+    NOOP = "alter default privileges in schema public revoke execute on functions from public;\n"
+
+    def test_positive_per_schema_revoke_execute_from_public_is_reported(self):
+        f = self.one(self.NOOP, "GRANT003")
+        self.assertEqual((f.severity, f.target, f.line), ("low", "schema public", 1))
+        self.assertIn("alter default privileges revoke execute on functions from public", f.fix)
+        self.assertNotIn("in schema", f.fix.split(";")[0])
+        for sql in ("ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON ROUTINES FROM PUBLIC;\n",
+                    "alter default privileges in schema public revoke execute on functions from public, anon;\n"):
+            self.one(sql, "GRANT003")
+
+    def test_negative_global_form_other_roles_other_schemas_and_real_revokes(self):
+        for sql in ("alter default privileges revoke execute on functions from public;\n",
+                    "alter default privileges for role postgres revoke execute on functions from public;\n",
+                    "alter default privileges in schema public revoke execute on functions from anon;\n",
+                    "alter default privileges in schema private revoke execute on functions from public;\n",
+                    "alter default privileges in schema public revoke usage on sequences from public;\n",
+                    "alter default privileges in schema public grant execute on functions to public;\n"
+                    "alter default privileges in schema public revoke execute on functions from public;\n",
+                    "revoke execute on all functions in schema public from public;\n"):
+            self.assertEqual([f for f in self.scan(sql)["findings"] if f.rule == "GRANT003"], [], sql)
+
+    def test_grant003_does_not_fail_the_default_threshold(self):
+        res = self.scan(self.NOOP)
+        self.assertEqual(rls_check.exit_code(res, "high"), 0)
+
     def test_positive_default_privileges_cover_later_tables(self):
         sql = "alter default privileges for role postgres in schema public grant all on tables to anon;\n" + self.T
         self.assertEqual(self.wide(sql), [("high", "Default privileges hand new tables to anon")])

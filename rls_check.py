@@ -280,6 +280,9 @@ class Schema:
         self.schema_grants = {}
         # schema (or "*" for all schemas) -> {"privs": {role: set}, "file", "line", "before": table keys that existed}
         self.default_grants = {}
+        # per-schema "revoke execute on functions from public" in default privileges: [{"schema", "file", "line"}]
+        self.noop_function_revokes = []
+        self._schema_function_grants = set()
 
     # ---- driver -----------------------------------------------------------
     def apply_file(self, text, file):
@@ -567,7 +570,8 @@ class Schema:
         rest = ms[m.end():]
         gm = re.search(r"\b(grant|revoke)\s+(.+?)\s+on\s+tables\s+(?:to|from)\s+(.+)$", rest, _F)
         if not gm:
-            return  # sequences, functions, types: not tracked
+            self._default_function_privs(rest, file, line)
+            return  # sequences, types: not tracked
         head = rest[:gm.start()]
         im = re.search(r"\bin\s+schema\s+(.+)$", head, _F)
         schemas = [norm_ident(x) for x in im.group(1).split(",") if x.strip()] if im else ["*"]
@@ -582,6 +586,31 @@ class Schema:
                 self._apply_privs(entry, privs, roles, grant)
                 if not entry["privs"]:
                     self.default_grants.pop(sch, None)
+
+    def _default_function_privs(self, rest, file, line):
+        """GRANT003 input: a per-schema default-privileges REVOKE of EXECUTE on functions FROM PUBLIC.
+
+        PostgreSQL adds per-schema default privileges to the global ones, so this statement cannot take away the
+        EXECUTE that PUBLIC gets on new functions by default. It is only meaningful after an earlier per-schema
+        GRANT of the same privilege, which is tracked so that case is not reported."""
+        fm = re.search(r"\b(grant|revoke)\s+(?:grant\s+option\s+for\s+)?(.+?)\s+on\s+(?:functions|routines)\s+"
+                       r"(?:to|from)\s+(.+?)(?:\s+(?:cascade|restrict))?\s*$", rest, _F)
+        if not fm:
+            return
+        im = re.search(r"\bin\s+schema\s+(.+)$", rest[:fm.start()], _F)
+        if not im:
+            return  # the global form does change the default
+        privs = {x.strip().lower() for x in fm.group(2).split(",")}
+        roles = {norm_ident(x) for x in fm.group(3).split(",") if x.strip()}
+        if "public" not in roles or not privs & {"execute", "all", "all privileges"}:
+            return
+        for sch in [norm_ident(x) for x in im.group(1).split(",") if x.strip()]:
+            if fm.group(1).lower() == "grant":
+                self._schema_function_grants.add(sch)
+            elif sch in self._schema_function_grants:
+                self._schema_function_grants.discard(sch)
+            else:
+                self.noop_function_revokes.append({"schema": sch, "file": file, "line": line})
 
     def _grant(self, m, c, ms, file, line):
         if self._schema_wide(m, file, line, True):
@@ -806,6 +835,22 @@ def evaluate(schema, exposed=("public",)):
                 file, line, why, "revoke all on %s from anon;" % t.qname))
 
     out.extend(_wide_grant_findings(schema, exposed))
+
+    for entry in schema.noop_function_revokes:
+        if entry["schema"] not in exposed:
+            continue
+        out.append(Finding(
+            "GRANT003", "low", "schema " + entry["schema"],
+            "Per-schema default-privileges REVOKE EXECUTE ... FROM PUBLIC has no effect",
+            entry["file"], entry["line"],
+            "PostgreSQL adds per-schema default privileges to the global ones, so this statement cannot remove the "
+            "EXECUTE that PUBLIC (and therefore anon and authenticated) gets on new functions by default. Functions "
+            "created later in this schema stay callable. This is a reading of the migration only: it does not show "
+            "what the live database grants today.",
+            "alter default privileges revoke execute on functions from public;  -- no \"in schema\"; applies to "
+            "functions created later by the role that runs it (or add: for role <creator>). Then grant execute per "
+            "function. Supabase projects can also grant EXECUTE on new functions in public directly to anon and "
+            "authenticated through their own default privileges; those need a separate revoke. Check the live state with has_function_privilege('anon', oid, 'EXECUTE') over pg_proc."))
 
     for (sch, name), f in schema.functions.items():
         if f["definer"] and not f["search_path"]:
