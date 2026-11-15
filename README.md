@@ -88,6 +88,8 @@ schema public
 
 The safer fix: revoke the schema-wide grant, enable RLS and write the policy, then grant each table only what the app uses (for example `grant select on public.invoices to authenticated;`). [`examples/grant-fix-fixed`](examples/grant-fix-fixed) is the same project plus that migration ([`20261102100000_lock_invoices.sql`](examples/grant-fix-fixed/supabase/migrations/20261102100000_lock_invoices.sql)); `python3 rls_check.py examples/grant-fix-fixed` prints `0 critical, 0 high, 0 medium, 0 low  ->  PASS` and exits 0. A pass means none of the 13 known patterns matched, not that the app is secure.
 
+A longer walk-through of this example, with the PostgreSQL before/after output, is on DEV: [Fixed Supabase's 42501 with GRANT ALL? Check what you just opened](https://dev.to/grzegorz_greg_3135de67fdf/fixed-supabases-42501-with-grant-all-check-what-you-just-opened-5612) (AI-written, labelled as such there).
+
 The suggested SQL is a starting point. Read it before you run it: an owner-only policy is wrong for tables that are shared between team members.
 
 ## Options and CI
