@@ -1,0 +1,12 @@
+{
+  "name": "two-user-verify",
+  "private": true,
+  "type": "module",
+  "description": "Runs the insecure/fixed migration sets through PGlite and proves the cross-user read, then its absence after the fix.",
+  "scripts": {
+    "verify": "node verify.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.16"
+  }
+}
